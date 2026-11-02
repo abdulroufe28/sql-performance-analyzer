@@ -14,6 +14,7 @@ from backend.app.services.auth_service import (
     get_user_by_email,
 )
 
+from backend.app.api.dependencies import get_current_user, get_db
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -65,3 +66,14 @@ def login(
     token = create_access_token(str(user.id))
 
     return TokenResponse(access_token=token)
+
+@router.get("/me")
+def get_me(
+    current_user=Depends(get_current_user),
+):
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "is_active": current_user.is_active,
+    }
