@@ -2,6 +2,8 @@ from fastapi import FastAPI
 
 from backend.app.api.auth import router as auth_router
 
+from backend.app.api.queries import router as query_router
+
 
 app = FastAPI(
     title="SQL Performance Analyzer",
@@ -14,6 +16,13 @@ app.include_router(
     auth_router,
     prefix="/api/v1",
 )
+
+app.include_router(
+    query_router,
+    prefix="/api/v1",
+)
+
+
 
 
 @app.get("/api/v1/health")
