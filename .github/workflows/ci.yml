@@ -1,0 +1,69 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize Databases & Permissions
+        run: |
+          mysql -h 127.0.0.1 -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS sql_performance_app;"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS sql_performance_analysis;"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "CREATE USER IF NOT EXISTS 'sql_app_user'@'%' IDENTIFIED BY 'app_test_pw';"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "GRANT ALL PRIVILEGES ON sql_performance_app.* TO 'sql_app_user'@'%';"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "CREATE USER IF NOT EXISTS 'sql_analysis_user'@'%' IDENTIFIED BY 'analysis_test_pw';"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "GRANT SELECT, SHOW VIEW ON sql_performance_analysis.* TO 'sql_analysis_user'@'%';"
+          mysql -h 127.0.0.1 -u root -prootpassword -e "FLUSH PRIVILEGES;"
+          mysql -h 127.0.0.1 -u root -prootpassword sql_performance_analysis < backend/scripts/seed_analysis_db.sql
+
+      - name: Run Database Migrations
+        env:
+          APP_ENV: testing
+          APP_DATABASE_URL: mysql+pymysql://sql_app_user:app_test_pw@127.0.0.1:3306/sql_performance_app
+          ANALYSIS_DATABASE_URL: mysql+pymysql://sql_analysis_user:analysis_test_pw@127.0.0.1:3306/sql_performance_analysis
+          JWT_SECRET_KEY: test-secret-key-for-github-actions-ci-pipeline
+          JWT_ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 30
+        run: |
+          alembic upgrade head
+
+      - name: Execute Automated Test Suite (pytest)
+        env:
+          APP_ENV: testing
+          APP_DATABASE_URL: mysql+pymysql://sql_app_user:app_test_pw@127.0.0.1:3306/sql_performance_app
+          ANALYSIS_DATABASE_URL: mysql+pymysql://sql_analysis_user:analysis_test_pw@127.0.0.1:3306/sql_performance_analysis
+          JWT_SECRET_KEY: test-secret-key-for-github-actions-ci-pipeline
+          JWT_ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 30
+        run: |
+          pytest
