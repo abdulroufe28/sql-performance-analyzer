@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.api.admin import router as admin_router
 from backend.app.api.auth import router as auth_router
 from backend.app.api.dashboard import router as dashboard_router
+from backend.app.api.feedback import router as feedback_router
 from backend.app.api.queries import router as query_router
 
 
@@ -27,6 +28,11 @@ app.include_router(
 
 app.include_router(
     dashboard_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    feedback_router,
     prefix="/api/v1",
 )
 

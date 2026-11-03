@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app.api.dependencies import get_current_user, get_db
 from backend.app.models.query_analysis import QueryAnalysis
 from backend.app.models.query_comparison import QueryComparison
+from backend.app.models.security_audit import SecurityAuditLog
 from backend.app.models.user import User
 from backend.app.schemas.query import (
     QueryAnalyzeRequest,
@@ -20,6 +21,7 @@ from backend.app.services.comparison_service import compare_queries
 from backend.app.services.query_execution_service import (
     execute_read_only_query,
 )
+from backend.app.services.sql_safety_service import SQLSafetyError
 
 
 router = APIRouter(
@@ -39,7 +41,21 @@ def analyze_query(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = execute_read_only_query(data.query)
+    try:
+        result = execute_read_only_query(data.query)
+    except SQLSafetyError as err:
+        # Audit log malicious/blocked queries
+        audit_entry = SecurityAuditLog(
+            user_id=current_user.id,
+            violation_type="DESTRUCTIVE_SQL_BLOCKED",
+            attempted_query=data.query[:1000],
+        )
+        db.add(audit_entry)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
 
     analysis = QueryAnalysis(
         user_id=current_user.id,
@@ -56,6 +72,7 @@ def analyze_query(
     db.commit()
 
     return result
+
 
 
 @router.get(
@@ -180,3 +197,35 @@ def get_user_comparisons(
         total=total,
         total_pages=total_pages,
     )
+
+
+@router.get(
+    "/analyses/{analysis_id}/export",
+)
+def export_query_report(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    analysis = db.get(QueryAnalysis, analysis_id)
+    if not analysis:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis record not found")
+
+    if analysis.user_id != current_user.id and current_user.role != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this report")
+
+    return {
+        "report_type": "Database Performance Analysis Report",
+        "analysis_id": analysis.id,
+        "query": analysis.query,
+        "execution_time_ms": analysis.execution_time_ms,
+        "row_count": analysis.row_count,
+        "query_cost": analysis.query_cost,
+        "rows_examined": analysis.rows_examined,
+        "performance_rating": analysis.performance_rating,
+        "has_full_table_scan": analysis.has_full_table_scan,
+        "created_at": analysis.created_at.isoformat(),
+        "exported_by": current_user.email,
+        "verdict": "Query exhibits full table scan bottlenecks requiring index optimization." if analysis.has_full_table_scan else "Query is optimized with efficient index access."
+    }
+

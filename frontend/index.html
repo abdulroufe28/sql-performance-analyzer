@@ -27,6 +27,7 @@
 
     <div class="nav-auth" id="navAuth">
       <div id="userProfile" class="hidden" style="display: flex; align-items: center; gap: 0.75rem;">
+        <button class="btn btn-secondary" onclick="openFeedbackModal()" style="padding: 0.4rem 0.8rem; font-size: 0.825rem;">💬 Feedback</button>
         <div class="user-badge">
           <span id="userEmailText">user@example.com</span>
           <span class="role-tag" id="userRoleTag">USER</span>
@@ -162,6 +163,9 @@
 
       <!-- Analysis Results Area -->
       <div id="analysisResultContainer" class="hidden">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+          <button class="btn btn-secondary" onclick="exportCurrentReport()">📥 Export Performance Audit Report</button>
+        </div>
         <!-- KPI Row -->
         <div class="stats-grid">
           <div class="stat-card">
@@ -385,13 +389,38 @@
     <section id="view-admin" class="hidden">
       <div class="section-header">
         <div>
-          <h1 class="section-title">Admin Dashboard</h1>
-          <p class="section-subtitle">System monitoring, platform usage statistics, and database connectivity.</p>
+          <h1 class="section-title">Admin Management & Server Console</h1>
+          <p class="section-subtitle">Real-time system telemetry, user access control, security threat logs, and user satisfaction feedback.</p>
+        </div>
+      </div>
+
+      <!-- Live Server Hardware Telemetry -->
+      <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-muted);">🖥️ Live Server Hardware Telemetry</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">CPU Usage</span>
+          <span class="stat-value" id="admCpuPercent">0%</span>
+          <span class="stat-subtext">Real-time processor load</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">RAM Memory Usage</span>
+          <span class="stat-value" id="admRamUsage">0 / 0 GB</span>
+          <span class="stat-subtext" id="admRamPercent">0% consumed</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Disk Storage</span>
+          <span class="stat-value" id="admDiskUsage">0 / 0 GB</span>
+          <span class="stat-subtext" id="admDiskPercent">0% consumed</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Active Server Threads</span>
+          <span class="stat-value" id="admActiveThreads">0</span>
+          <span class="stat-subtext">Concurrent worker threads</span>
         </div>
       </div>
 
       <!-- User Stats -->
-      <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-muted);">👥 User Management</h3>
+      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">👥 User Management & Access Control</h3>
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-label">Total Users</span>
@@ -407,20 +436,71 @@
         </div>
       </div>
 
-      <!-- Usage Stats -->
-      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">📊 Platform Execution Metrics</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Total Analyses Executed</span>
-          <span class="stat-value" id="admTotalQueries">0</span>
+      <!-- Users Table -->
+      <div class="card">
+        <h3 class="card-title">User Accounts & Roles</h3>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Queries Run</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Loading users...</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">Total Comparisons Run</span>
-          <span class="stat-value" id="admTotalComparisons">0</span>
+      </div>
+
+      <!-- Security Threats Audit -->
+      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--accent-rose);">🛡️ Blocked Security Threats & Malicious Queries</h3>
+      <div class="card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Violation Type</th>
+                <th>Blocked Statement</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="adminSecurityLogsBody">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security violations detected.</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">Platform Average Latency</span>
-          <span class="stat-value" id="admAvgLatency">0.00 ms</span>
+      </div>
+
+      <!-- User Satisfaction Feedback -->
+      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">⭐ User Satisfaction & Feedback</h3>
+      <div class="card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Rating</th>
+                <th>Category</th>
+                <th>Comment</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminFeedbackTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No feedback submitted yet.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -489,6 +569,63 @@
       </div>
 
       <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeAuthModal()">✕</button>
+    </div>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div class="modal-overlay hidden" id="feedbackModal">
+    <div class="modal-content">
+      <h2 class="modal-title">Share Your Feedback</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Help us improve SQL Performance Analyzer. We review every submission.</p>
+
+      <form onsubmit="handleFeedbackSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Category:</label>
+          <select id="fbCategory" class="input-text">
+            <option value="GENERAL">General Feedback</option>
+            <option value="FEATURE_REQUEST">Feature Request</option>
+            <option value="BUG_REPORT">Bug Report</option>
+            <option value="PERFORMANCE_ISSUE">Performance Concern</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Satisfaction Rating:</label>
+          <div style="display: flex; gap: 0.5rem; font-size: 1.5rem; cursor: pointer;" id="starRatingContainer">
+            <span onclick="setRating(1)">★</span>
+            <span onclick="setRating(2)">★</span>
+            <span onclick="setRating(3)">★</span>
+            <span onclick="setRating(4)">★</span>
+            <span onclick="setRating(5)">★</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Comments / Suggestions:</label>
+          <textarea id="fbComment" class="input-text" style="min-height: 90px;" placeholder="Tell us what you liked or what could be improved..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
+      </form>
+
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeFeedbackModal()">✕</button>
+    </div>
+  </div>
+
+  <!-- Report Export Modal -->
+  <div class="modal-overlay hidden" id="reportModal">
+    <div class="modal-content" style="max-width: 600px;">
+      <h2 class="modal-title">📑 Performance Audit Report</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Official evidence-based performance verification report.</p>
+      
+      <pre id="reportJsonView" class="mono" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; font-size: 0.8rem; max-height: 350px; overflow-y: auto; color: #a5f3fc; border: 1px solid var(--border-color);"></pre>
+
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem;">
+        <button class="btn btn-secondary" onclick="copyReportText()">📋 Copy JSON</button>
+        <button class="btn btn-primary" onclick="closeReportModal()">Close</button>
+      </div>
+
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeReportModal()">✕</button>
     </div>
   </div>
 

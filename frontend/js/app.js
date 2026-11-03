@@ -5,6 +5,8 @@ let currentView = "dashboard";
 let historyPage = 1;
 let historyPageSize = 10;
 let historyTotalPages = 1;
+let lastAnalyzedResult = null;
+let currentFeedbackRating = 5;
 
 // Chart instances
 let latencyChartInstance = null;
@@ -390,6 +392,7 @@ async function runAnalyze() {
 }
 
 function renderAnalysisResult(data) {
+  lastAnalyzedResult = data;
   const container = document.getElementById("analysisResultContainer");
   container.classList.remove("hidden");
 
@@ -679,6 +682,17 @@ async function loadAdmin() {
     document.getElementById("admTotalComparisons").textContent = data.usage_stats.total_comparisons;
     document.getElementById("admAvgLatency").textContent = `${data.usage_stats.avg_platform_latency_ms} ms`;
 
+    // Live Telemetry
+    if (data.telemetry) {
+      const t = data.telemetry;
+      document.getElementById("admCpuPercent").textContent = `${t.cpu_percent}%`;
+      document.getElementById("admRamUsage").textContent = `${t.memory_used_gb} / ${t.memory_total_gb} GB`;
+      document.getElementById("admRamPercent").textContent = `${t.memory_percent}% consumed`;
+      document.getElementById("admDiskUsage").textContent = `${t.disk_used_gb} / ${t.disk_total_gb} GB`;
+      document.getElementById("admDiskPercent").textContent = `${t.disk_percent}% consumed`;
+      document.getElementById("admActiveThreads").textContent = t.active_threads;
+    }
+
     // Health
     const appEl = document.getElementById("admAppDbStatus");
     appEl.textContent = data.health.app_database;
@@ -691,9 +705,248 @@ async function loadAdmin() {
     const sysEl = document.getElementById("admSystemStatus");
     sysEl.textContent = data.health.status;
     sysEl.className = `badge ${data.health.status === 'HEALTHY' ? 'badge-optimized' : 'badge-warning'}`;
+
+    // Load sub-tables
+    await Promise.all([
+      loadAdminUsers(),
+      loadAdminSecurityLogs(),
+      loadAdminFeedbacks()
+    ]);
   } catch (e) {
     console.error("Admin dashboard error:", e);
   }
+}
+
+async function loadAdminUsers() {
+  try {
+    const res = await apiRequest("/api/v1/admin/users");
+    if (!res.ok) return;
+    const users = await res.json();
+
+    const tbody = document.getElementById("adminUsersTableBody");
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td class="mono">#${u.id}</td>
+        <td><strong>${u.email}</strong></td>
+        <td>${u.full_name || '-'}</td>
+        <td><span class="role-tag ${u.role === 'ADMIN' ? 'admin' : ''}">${u.role}</span></td>
+        <td><span class="badge ${u.is_active ? 'badge-optimized' : 'badge-critical'}">${u.is_active ? 'ACTIVE' : 'SUSPENDED'}</span></td>
+        <td class="mono">${u.total_queries}</td>
+        <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+        <td>
+          <button class="btn ${u.is_active ? 'btn-danger' : 'btn-secondary'}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="toggleUserStatus(${u.id}, ${u.is_active})">
+            ${u.is_active ? 'Suspend' : 'Activate'}
+          </button>
+          <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-left: 0.25rem;" onclick="toggleUserRole(${u.id}, '${u.role}')">
+            ${u.role === 'ADMIN' ? 'Make User' : 'Make Admin'}
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  } catch (err) {
+    console.error("Error loading users:", err);
+  }
+}
+
+async function toggleUserStatus(userId, currentStatus) {
+  try {
+    const res = await apiRequest(`/api/v1/admin/users/${userId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: !currentStatus })
+    });
+    if (res.ok) {
+      showToast(`User ${!currentStatus ? 'activated' : 'suspended'} successfully.`, "success");
+      loadAdminUsers();
+    } else {
+      const d = await res.json();
+      showToast(d.detail || "Failed to update user status.", "error");
+    }
+  } catch (e) {
+    showToast("Network error updating status.", "error");
+  }
+}
+
+async function toggleUserRole(userId, currentRole) {
+  const newRole = currentRole === "ADMIN" ? "USER" : "ADMIN";
+  try {
+    const res = await apiRequest(`/api/v1/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role: newRole })
+    });
+    if (res.ok) {
+      showToast(`User role updated to ${newRole}.`, "success");
+      loadAdminUsers();
+    } else {
+      const d = await res.json();
+      showToast(d.detail || "Failed to update user role.", "error");
+    }
+  } catch (e) {
+    showToast("Network error updating role.", "error");
+  }
+}
+
+async function loadAdminSecurityLogs() {
+  try {
+    const res = await apiRequest("/api/v1/admin/security-logs?limit=15");
+    if (!res.ok) return;
+    const logs = await res.json();
+
+    const tbody = document.getElementById("adminSecurityLogsBody");
+    if (logs.length > 0) {
+      tbody.innerHTML = logs.map(l => `
+        <tr>
+          <td class="mono">#${l.id}</td>
+          <td>${l.user_email || '<span style="color:var(--text-dim)">Anonymous</span>'}</td>
+          <td><span class="badge badge-critical">${l.violation_type}</span></td>
+          <td class="mono" style="color: var(--accent-rose);">${l.attempted_query.length > 55 ? l.attempted_query.substring(0, 55) + '...' : l.attempted_query}</td>
+          <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(l.created_at).toLocaleString()}</td>
+        </tr>
+      `).join("");
+    } else {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security violations detected.</td></tr>`;
+    }
+  } catch (err) {
+    console.error("Error loading security logs:", err);
+  }
+}
+
+async function loadAdminFeedbacks() {
+  try {
+    const res = await apiRequest("/api/v1/admin/feedback");
+    if (!res.ok) return;
+    const feedbacks = await res.json();
+
+    const tbody = document.getElementById("adminFeedbackTableBody");
+    if (feedbacks.length > 0) {
+      tbody.innerHTML = feedbacks.map(f => `
+        <tr>
+          <td class="mono">#${f.id}</td>
+          <td>${f.user_email}</td>
+          <td style="color: #fbbf24;">${'★'.repeat(f.rating)}${'☆'.repeat(5 - f.rating)}</td>
+          <td><span class="badge badge-info">${f.category}</span></td>
+          <td style="max-width: 250px;">${f.comment}</td>
+          <td><span class="badge ${f.status === 'RESOLVED' ? 'badge-optimized' : f.status === 'REVIEWED' ? 'badge-info' : 'badge-warning'}">${f.status}</span></td>
+          <td>
+            <select style="font-size: 0.75rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 0.2rem; border-radius: 4px;" onchange="updateFeedbackStatus(${f.id}, this.value)">
+              <option value="PENDING" ${f.status === 'PENDING' ? 'selected' : ''}>Pending</option>
+              <option value="REVIEWED" ${f.status === 'REVIEWED' ? 'selected' : ''}>Reviewed</option>
+              <option value="RESOLVED" ${f.status === 'RESOLVED' ? 'selected' : ''}>Resolved</option>
+            </select>
+          </td>
+        </tr>
+      `).join("");
+    } else {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No user feedback yet.</td></tr>`;
+    }
+  } catch (err) {
+    console.error("Error loading feedbacks:", err);
+  }
+}
+
+async function updateFeedbackStatus(feedbackId, newStatus) {
+  try {
+    const res = await apiRequest(`/api/v1/admin/feedback/${feedbackId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (res.ok) {
+      showToast(`Feedback #${feedbackId} marked as ${newStatus}.`, "success");
+      loadAdminFeedbacks();
+    }
+  } catch (e) {
+    showToast("Error updating feedback status.", "error");
+  }
+}
+
+// FEEDBACK MODAL
+function openFeedbackModal() {
+  if (!token) {
+    showToast("Please sign in to share feedback.", "error");
+    openAuthModal("login");
+    return;
+  }
+  setRating(5);
+  document.getElementById("feedbackModal").classList.remove("hidden");
+}
+
+function closeFeedbackModal() {
+  document.getElementById("feedbackModal").classList.add("hidden");
+}
+
+function setRating(rating) {
+  currentFeedbackRating = rating;
+  const stars = document.getElementById("starRatingContainer").children;
+  for (let i = 0; i < 5; i++) {
+    stars[i].style.color = i < rating ? "#fbbf24" : "#4b5563";
+  }
+}
+
+async function handleFeedbackSubmit(event) {
+  event.preventDefault();
+  const category = document.getElementById("fbCategory").value;
+  const comment = document.getElementById("fbComment").value.trim();
+
+  try {
+    const res = await apiRequest("/api/v1/feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        category,
+        rating: currentFeedbackRating,
+        comment
+      })
+    });
+    if (res.ok) {
+      closeFeedbackModal();
+      document.getElementById("fbComment").value = "";
+      showToast("Thank you for your feedback! It helps us build a better platform.", "success");
+    } else {
+      showToast("Failed to submit feedback.", "error");
+    }
+  } catch (e) {
+    showToast("Network error submitting feedback.", "error");
+  }
+}
+
+// REPORT EXPORT MODAL
+function exportCurrentReport() {
+  if (!lastAnalyzedResult) {
+    showToast("No query analysis available to export.", "error");
+    return;
+  }
+
+  const report = {
+    platform: "SQL Performance Analyzer",
+    report_type: "Database Query Optimization & Performance Audit Report",
+    exported_at: new Date().toISOString(),
+    query: lastAnalyzedResult.query,
+    execution_metrics: {
+      execution_time_ms: lastAnalyzedResult.execution_time_ms,
+      row_count: lastAnalyzedResult.row_count,
+      total_rows_examined: lastAnalyzedResult.total_rows_examined,
+      query_cost: lastAnalyzedResult.query_cost,
+      has_full_table_scan: lastAnalyzedResult.has_full_table_scan,
+      using_filesort: lastAnalyzedResult.using_filesort,
+      using_temporary: lastAnalyzedResult.using_temporary,
+      performance_rating: lastAnalyzedResult.performance_rating
+    },
+    bottlenecks: lastAnalyzedResult.bottlenecks || [],
+    recommendations: lastAnalyzedResult.recommendations || [],
+    tabular_execution_plan: lastAnalyzedResult.tabular_plan || []
+  };
+
+  document.getElementById("reportJsonView").textContent = JSON.stringify(report, null, 2);
+  document.getElementById("reportModal").classList.remove("hidden");
+}
+
+function closeReportModal() {
+  document.getElementById("reportModal").classList.add("hidden");
+}
+
+function copyReportText() {
+  const text = document.getElementById("reportJsonView").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("Performance report JSON copied to clipboard!", "success");
+  });
 }
 
 // Helper: rating badge markup
@@ -706,3 +959,4 @@ function getRatingBadge(rating) {
     return `<span class="badge badge-critical">CRITICAL</span>`;
   }
 }
+
