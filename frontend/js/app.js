@@ -54,12 +54,25 @@ function triggerGoogleSignIn() {
   if (googleClientId && window.google && window.google.accounts) {
     google.accounts.id.prompt((notification) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        showToast("Google sign-in popup blocked or dismissed.", "error");
+        openGooglePromptModal();
       }
     });
   } else {
-    showToast("Google OAuth Setup: Add GOOGLE_CLIENT_ID to your .env to connect live Google Cloud credentials.", "info");
+    openGooglePromptModal();
   }
+}
+
+function openGooglePromptModal() {
+  document.getElementById("googlePromptModal").classList.remove("hidden");
+}
+
+function closeGooglePromptModal() {
+  document.getElementById("googlePromptModal").classList.add("hidden");
+}
+
+function selectDevGoogleAccount(email, name) {
+  closeGooglePromptModal();
+  handleGoogleAuthCallback({ credential: `dev_google_:${email}:${name}` });
 }
 
 async function handleGoogleAuthCallback(response) {

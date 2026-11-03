@@ -554,6 +554,43 @@
     </div>
   </div>
 
+  <!-- Google Account Selector Modal -->
+  <div class="modal-overlay hidden" id="googlePromptModal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.85rem;">
+        <svg width="24" height="24" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.347 2.825.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
+        <div>
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;">Sign in with Google</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Choose an account to continue</p>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.65rem; margin: 1.25rem 0;">
+        <div onclick="selectDevGoogleAccount('abdulroufe@gmail.com', 'Abdul Roufe')" style="display: flex; align-items: center; gap: 0.85rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-card-border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(6,182,212,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #06b6d4, #3b82f6); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;">AR</div>
+          <div style="text-align: left;">
+            <div style="font-weight: 700; color: #fff; font-size: 0.9rem;">Abdul Roufe</div>
+            <div style="font-size: 0.775rem; color: var(--text-dim);">abdulroufe@gmail.com</div>
+          </div>
+        </div>
+
+        <div onclick="selectDevGoogleAccount('developer@example.com', 'Database Engineer')" style="display: flex; align-items: center; gap: 0.85rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-card-border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(6,182,212,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;">DE</div>
+          <div style="text-align: left;">
+            <div style="font-weight: 700; color: #fff; font-size: 0.9rem;">Database Engineer</div>
+            <div style="font-size: 0.775rem; color: var(--text-dim);">developer@example.com</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 1rem; text-align: right;">
+        <button class="btn btn-secondary" onclick="closeGooglePromptModal()">Cancel</button>
+      </div>
+
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.3rem;" onclick="closeGooglePromptModal()">✕</button>
+    </div>
+  </div>
+
   <!-- Performance Report Modal -->
   <div class="modal-overlay hidden" id="reportModal">
     <div class="modal-content" style="max-width: 620px;">

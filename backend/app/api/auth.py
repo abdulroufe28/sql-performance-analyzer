@@ -88,39 +88,46 @@ def login_with_google(
     data: GoogleLoginRequest,
     db: Session = Depends(get_db),
 ):
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(
-                "https://oauth2.googleapis.com/tokeninfo",
-                params={"id_token": data.credential},
+    # Seamless Development Simulator Fallback
+    if settings.app_env == "development" and data.credential.startswith("dev_google_"):
+        parts = data.credential.split(":", 2)
+        email = parts[1] if len(parts) > 1 else "developer@gmail.com"
+        name = parts[2] if len(parts) > 2 else "Google Developer"
+        google_data = {"email": email, "name": name, "email_verified": "true"}
+    else:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(
+                    "https://oauth2.googleapis.com/tokeninfo",
+                    params={"id_token": data.credential},
+                )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Could not reach Google authentication services",
+            ) from exc
+
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired Google authentication token",
             )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not reach Google authentication services",
-        ) from exc
 
-    if resp.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired Google authentication token",
-        )
+        google_data = resp.json()
+        email = google_data.get("email")
+        email_verified = google_data.get("email_verified")
 
-    google_data = resp.json()
-    email = google_data.get("email")
-    email_verified = google_data.get("email_verified")
+        if not email or str(email_verified).lower() != "true":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google account email is not verified",
+            )
 
-    if not email or str(email_verified).lower() != "true":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google account email is not verified",
-        )
-
-    if settings.google_client_id and google_data.get("aud") != settings.google_client_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google token audience does not match application client ID",
-        )
+        if settings.google_client_id and google_data.get("aud") != settings.google_client_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google token audience does not match application client ID",
+            )
 
     user = get_user_by_email(db, email)
     if user:

@@ -62,3 +62,20 @@ def test_login_with_google_invalid_token():
         )
         assert res.status_code == 401
         assert "invalid or expired" in res.json()["detail"].lower()
+
+
+def test_login_with_google_dev_simulator():
+    dev_email = "abdul_test_dev@gmail.com"
+    res = client.post(
+        "/api/v1/auth/google",
+        json={"credential": f"dev_google_:{dev_email}:Abdul Roufe"},
+    )
+    assert res.status_code == 200
+    assert "access_token" in res.json()
+
+    # Cleanup
+    db = AppSessionLocal()
+    db.execute(delete(User).where(User.email == dev_email))
+    db.commit()
+    db.close()
+
