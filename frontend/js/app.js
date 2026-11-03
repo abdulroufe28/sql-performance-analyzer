@@ -7,6 +7,7 @@ let historyPageSize = 10;
 let historyTotalPages = 1;
 let lastAnalyzedResult = null;
 let currentFeedbackRating = 5;
+let googleClientId = null;
 
 // Chart instances
 let latencyChartInstance = null;
@@ -24,9 +25,72 @@ const PRESETS = {
 // Initialize app on DOM load
 document.addEventListener("DOMContentLoaded", async () => {
   await checkAuth();
+  await initGoogleAuth();
   navigate("dashboard");
   loadDatabaseSchema();
 });
+
+// Google OAuth 2.0 Integration
+async function initGoogleAuth() {
+  try {
+    const res = await fetch("/api/v1/auth/google/config");
+    if (!res.ok) return;
+    const data = await res.json();
+    googleClientId = data.google_client_id;
+
+    if (googleClientId && window.google && window.google.accounts) {
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleAuthCallback,
+        auto_select: false,
+      });
+    }
+  } catch (err) {
+    console.warn("Google auth init error:", err);
+  }
+}
+
+function triggerGoogleSignIn() {
+  if (googleClientId && window.google && window.google.accounts) {
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        showToast("Google sign-in popup blocked or dismissed.", "error");
+      }
+    });
+  } else {
+    showToast("Google OAuth Setup: Add GOOGLE_CLIENT_ID to your .env to connect live Google Cloud credentials.", "info");
+  }
+}
+
+async function handleGoogleAuthCallback(response) {
+  if (!response || !response.credential) {
+    showToast("No Google credential received.", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/v1/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.detail || "Google authentication failed.", "error");
+      return;
+    }
+
+    token = data.access_token;
+    localStorage.setItem("token", token);
+    closeAuthModal();
+    showToast("Signed in with Google successfully!", "success");
+    await checkAuth();
+    navigate(currentView);
+  } catch (err) {
+    showToast("Network error verifying Google token.", "error");
+  }
+}
 
 // Toast notification helper
 function showToast(message, type = "info") {
