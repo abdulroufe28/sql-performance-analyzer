@@ -25,6 +25,7 @@ const PRESETS = {
 document.addEventListener("DOMContentLoaded", async () => {
   await checkAuth();
   navigate("dashboard");
+  loadDatabaseSchema();
 });
 
 // Toast notification helper
@@ -199,7 +200,6 @@ async function handleAuthSubmit(event) {
 function navigate(viewName) {
   currentView = viewName;
 
-  // Toggle view containers
   const views = ["dashboard", "analyzer", "comparison", "history", "admin"];
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
@@ -212,7 +212,6 @@ function navigate(viewName) {
     }
   });
 
-  // Toggle active button
   document.querySelectorAll(".nav-btn").forEach(btn => {
     if (btn.getAttribute("data-view") === viewName) {
       btn.classList.add("active");
@@ -221,11 +220,11 @@ function navigate(viewName) {
     }
   });
 
-  // Refresh view data
   if (viewName === "dashboard") loadDashboard();
   if (viewName === "history") loadHistory(1);
   if (viewName === "comparison") loadSavedComparisons();
   if (viewName === "admin") loadAdmin();
+  if (viewName === "analyzer") loadDatabaseSchema();
 }
 
 // 1. DASHBOARD
@@ -241,27 +240,24 @@ async function loadDashboard() {
     document.getElementById("dashAvgLatency").innerHTML = `${data.avg_execution_time_ms} <small style="font-size: 1rem; color: var(--text-dim);">ms</small>`;
     document.getElementById("dashFtsCount").textContent = data.full_table_scans_count;
 
-    // Quota progress
     const quotaPct = Math.min(100, Math.round((data.comparison_quota_used / data.comparison_quota_limit) * 100));
     document.getElementById("dashQuotaText").textContent = `${data.comparison_quota_used} / ${data.comparison_quota_limit}`;
     document.getElementById("dashQuotaBar").style.width = `${quotaPct}%`;
 
-    // Slowest Queries Table
     const slowBody = document.getElementById("slowestQueriesTable");
     if (data.slowest_queries && data.slowest_queries.length > 0) {
       slowBody.innerHTML = data.slowest_queries.map(q => `
         <tr>
           <td class="mono" title="${q.query}">${q.query.length > 45 ? q.query.substring(0, 45) + '...' : q.query}</td>
-          <td class="mono" style="color: var(--accent-rose); font-weight: 600;">${q.execution_time_ms} ms</td>
+          <td class="mono" style="color: var(--rose-danger); font-weight: 700;">${q.execution_time_ms} ms</td>
           <td>${q.row_count}</td>
-          <td><button class="btn btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="loadAndAnalyzeQuery('${encodeURIComponent(q.query)}')">Inspect</button></td>
+          <td><button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="loadAndAnalyzeQuery('${encodeURIComponent(q.query)}')">Inspect</button></td>
         </tr>
       `).join("");
     } else {
       slowBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-dim);">No slow queries detected.</td></tr>`;
     }
 
-    // Recent Activity Table
     const recBody = document.getElementById("recentQueriesTable");
     if (data.recent_queries && data.recent_queries.length > 0) {
       recBody.innerHTML = data.recent_queries.map(q => `
@@ -275,7 +271,6 @@ async function loadDashboard() {
       recBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-dim);">No recent activity.</td></tr>`;
     }
 
-    // Render Charts
     renderDashboardCharts(data);
   } catch (err) {
     console.error("Dashboard error:", err);
@@ -283,7 +278,6 @@ async function loadDashboard() {
 }
 
 function renderDashboardCharts(data) {
-  // 1. Latency trend chart
   const latCtx = document.getElementById("latencyChart").getContext("2d");
   const latLabels = data.recent_queries.map((q, idx) => `Q${idx + 1}`).reverse();
   const latValues = data.recent_queries.map(q => q.execution_time_ms).reverse();
@@ -296,25 +290,24 @@ function renderDashboardCharts(data) {
       datasets: [{
         label: "Execution Time (ms)",
         data: latValues.length ? latValues : [0],
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.15)",
+        borderColor: "#06b6d4",
+        backgroundColor: "rgba(6, 182, 212, 0.15)",
         fill: true,
         tension: 0.35,
-        pointBackgroundColor: "#60a5fa"
+        pointBackgroundColor: "#22d3ee"
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { grid: { color: "#232d42" }, ticks: { color: "#9ca3af" } },
-        x: { grid: { color: "#232d42" }, ticks: { color: "#9ca3af" } }
+        y: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } },
+        x: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } }
       },
       plugins: { legend: { display: false } }
     }
   });
 
-  // 2. Health distribution chart
   const healthCtx = document.getElementById("healthChart").getContext("2d");
   if (healthChartInstance) healthChartInstance.destroy();
   healthChartInstance = new Chart(healthCtx, {
@@ -331,13 +324,68 @@ function renderDashboardCharts(data) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "bottom", labels: { color: "#9ca3af", font: { size: 12 } } }
+        legend: { position: "bottom", labels: { color: "#94a3b8", font: { size: 12 } } }
       }
     }
   });
 }
 
-// 2. QUERY ANALYZER
+// 2. QUERY ANALYZER & SCHEMA EXPLORER
+async function loadDatabaseSchema() {
+  if (!token) return;
+
+  try {
+    const res = await apiRequest("/api/v1/queries/schema");
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const container = document.getElementById("schemaTagsContainer");
+    if (data.tables && data.tables.length > 0) {
+      container.innerHTML = data.tables.map(tbl => `
+        <div style="display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 0.75rem; margin-bottom: 0.35rem;">
+          <span class="schema-table-badge" onclick="appendSqlText('${tbl.name}')" title="Insert table name">
+            📁 ${tbl.name}
+          </span>
+          <span style="display: inline-flex; gap: 0.25rem;">
+            ${tbl.columns.map(c => `
+              <span style="cursor: pointer; background: rgba(255,255,255,0.05); font-size: 0.72rem; padding: 0.2rem 0.45rem; border-radius: 6px; color: ${c.is_primary ? '#38bdf8' : '#cbd5e1'}; font-family: var(--font-mono);" onclick="appendSqlText('${c.name}')" title="Insert column ${c.name} (${c.type})">
+                ${c.is_primary ? '🔑 ' : ''}${c.name}
+              </span>
+            `).join("")}
+          </span>
+        </div>
+      `).join("");
+    }
+  } catch (err) {
+    console.error("Schema error:", err);
+  }
+}
+
+function appendSqlText(text) {
+  const area = document.getElementById("sqlInput");
+  area.value = area.value ? `${area.value.trim()} ${text}` : text;
+  area.focus();
+}
+
+function formatSqlQuery() {
+  const area = document.getElementById("sqlInput");
+  let sql = area.value.trim();
+  if (!sql) return;
+
+  const keywords = ["SELECT", "FROM", "WHERE", "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "ON", "ORDER BY", "GROUP BY", "HAVING", "LIMIT", "AND", "OR"];
+  keywords.forEach(kw => {
+    const regex = new RegExp(`\\b${kw}\\b`, "gi");
+    sql = sql.replace(regex, kw);
+  });
+  area.value = sql;
+  showToast("SQL formatting applied.", "success");
+}
+
+function clearSqlEditor() {
+  document.getElementById("sqlInput").value = "";
+  document.getElementById("analysisResultContainer").classList.add("hidden");
+}
+
 function loadPreset(key) {
   if (PRESETS[key]) {
     document.getElementById("sqlInput").value = PRESETS[key];
@@ -382,7 +430,7 @@ async function runAnalyze() {
     }
 
     renderAnalysisResult(data);
-    showToast("Analysis completed successfully!", "success");
+    showToast("Query analysis & EXPLAIN profiling complete!", "success");
   } catch (err) {
     showToast("Network error while analyzing query.", "error");
   } finally {
@@ -396,27 +444,60 @@ function renderAnalysisResult(data) {
   const container = document.getElementById("analysisResultContainer");
   container.classList.remove("hidden");
 
-  // KPI
+  // KPI Row
   document.getElementById("resExecTime").textContent = `${data.execution_time_ms} ms`;
   document.getElementById("resRowCount").textContent = data.row_count;
   document.getElementById("resRowsExamined").textContent = data.total_rows_examined;
   document.getElementById("resQueryCost").textContent = data.query_cost !== null ? data.query_cost : "N/A";
   document.getElementById("resRatingBadge").innerHTML = getRatingBadge(data.performance_rating);
 
-  // Bottlenecks
+  // Scan Efficiency / Selectivity Gauge
+  const examined = Math.max(1, data.total_rows_examined);
+  const efficiencyRatio = Math.min(100, Math.round((data.row_count / examined) * 100));
+  const bar = document.getElementById("resEfficiencyBar");
+  const txt = document.getElementById("resEfficiencyText");
+  txt.textContent = `${efficiencyRatio}%`;
+  bar.style.width = `${efficiencyRatio}%`;
+  if (efficiencyRatio >= 50) {
+    bar.style.background = "linear-gradient(90deg, #10b981, #34d399)";
+    txt.style.color = "#34d399";
+  } else if (efficiencyRatio >= 15) {
+    bar.style.background = "linear-gradient(90deg, #f59e0b, #fbbf24)";
+    txt.style.color = "#fbbf24";
+  } else {
+    bar.style.background = "linear-gradient(90deg, #f43f5e, #fb7185)";
+    txt.style.color = "#fb7185";
+  }
+
+  // Visual Plan Tree Flowchart
+  renderVisualPlanTree(data);
+
+  // Auto-Optimizer Suggestion Box
+  const autoFixBox = document.getElementById("autoFixContainer");
+  if (data.has_full_table_scan) {
+    autoFixBox.classList.remove("hidden");
+    const codeEl = document.getElementById("autoFixCode");
+    const descEl = document.getElementById("autoFixDescription");
+    descEl.textContent = "Full table scan detected. Adding a B-Tree index on filtered columns will replace this scan with a fast index seek.";
+    codeEl.textContent = "CREATE INDEX idx_customers_filter ON customers(email);";
+  } else {
+    autoFixBox.classList.add("hidden");
+  }
+
+  // Bottlenecks List
   const bList = document.getElementById("bottlenecksList");
   if (data.bottlenecks && data.bottlenecks.length > 0) {
     bList.innerHTML = data.bottlenecks.map(b => `
       <div class="bottleneck-item ${b.severity}">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 700; font-size: 0.825rem;">${b.type} (Table: ${b.table})</span>
+          <span style="font-weight: 700; font-size: 0.825rem; color: #fff;">${b.type} (Table: ${b.table})</span>
           <span class="badge ${b.severity === 'CRITICAL' ? 'badge-critical' : b.severity === 'WARNING' ? 'badge-warning' : 'badge-info'}">${b.severity}</span>
         </div>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">${b.message}</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">${b.message}</p>
       </div>
     `).join("");
   } else {
-    bList.innerHTML = `<div style="color: var(--accent-emerald); font-size: 0.9rem;">✨ No bottlenecks detected! This query performs efficiently with index coverage.</div>`;
+    bList.innerHTML = `<div style="color: var(--emerald-success); font-size: 0.9rem; padding: 0.5rem 0;">✨ Clean execution plan! No performance bottlenecks detected.</div>`;
   }
 
   // Recommendations
@@ -424,9 +505,9 @@ function renderAnalysisResult(data) {
   if (data.recommendations && data.recommendations.length > 0) {
     rList.innerHTML = data.recommendations.map(r => `
       <div class="rec-item">
-        <span style="font-size: 1.25rem;">💡</span>
+        <span style="font-size: 1.35rem;">💡</span>
         <div>
-          <span class="badge badge-info" style="margin-bottom: 0.25rem;">${r.category}</span>
+          <span class="badge badge-info" style="margin-bottom: 0.35rem;">${r.category}</span>
           <p style="font-size: 0.85rem; color: var(--text-main);">${r.suggestion}</p>
         </div>
       </div>
@@ -442,10 +523,10 @@ function renderAnalysisResult(data) {
       <tr>
         <td class="mono">${r.id}</td>
         <td>${r.select_type}</td>
-        <td class="mono" style="color: #60a5fa; font-weight: 600;">${r.table}</td>
+        <td class="mono" style="color: var(--cyan-glow); font-weight: 700;">${r.table}</td>
         <td><span class="badge ${r.type === 'ALL' ? 'badge-warning' : 'badge-optimized'}">${r.type}</span></td>
         <td class="mono">${r.possible_keys || '<span style="color:var(--text-dim)">NULL</span>'}</td>
-        <td class="mono" style="color: var(--accent-emerald); font-weight: 600;">${r.key || '<span style="color:var(--text-dim)">NULL</span>'}</td>
+        <td class="mono" style="color: var(--emerald-success); font-weight: 700;">${r.key || '<span style="color:var(--text-dim)">NULL</span>'}</td>
         <td class="mono">${r.rows}</td>
         <td class="mono">${r.filtered}%</td>
         <td style="color: var(--text-muted); font-size: 0.8rem;">${r.Extra || '-'}</td>
@@ -470,9 +551,67 @@ function renderAnalysisResult(data) {
   }
 }
 
+// Visual Node Graph Builder
+function renderVisualPlanTree(data) {
+  const container = document.getElementById("visualPlanContainer");
+  const nodes = [];
+
+  // Node 1: Client Query Request
+  nodes.push(`
+    <div class="plan-node status-good">
+      <div class="node-title">Stage 1: Parser</div>
+      <div class="node-label">SQL Query Input</div>
+      <div class="node-metric">Validated Safe</div>
+    </div>
+  `);
+
+  // Node 2: Storage Engine Access Mode
+  const isFullScan = data.has_full_table_scan;
+  const accessClass = isFullScan ? "status-warning" : "status-good";
+  const accessLabel = isFullScan ? "Full Table Scan (ALL)" : `Index Seek (${data.indexes_used.join(', ') || 'Primary/Const'})`;
+  nodes.push(`
+    <div class="plan-node ${accessClass}">
+      <div class="node-title">Stage 2: Engine Access</div>
+      <div class="node-label">${accessLabel}</div>
+      <div class="node-metric">Examined: ${data.total_rows_examined} rows</div>
+    </div>
+  `);
+
+  // Node 3: Sorting / Filtering Stage (if applicable)
+  if (data.using_filesort || data.using_temporary) {
+    nodes.push(`
+      <div class="plan-node status-warning">
+        <div class="node-title">Stage 3: Sort / Temp</div>
+        <div class="node-label">${data.using_filesort ? 'Using Filesort' : 'Temporary Table'}</div>
+        <div class="node-metric">In-Memory / Disk Pass</div>
+      </div>
+    `);
+  }
+
+  // Final Node: Result Set Output
+  nodes.push(`
+    <div class="plan-node status-good">
+      <div class="node-title">Stage ${nodes.length + 1}: Output</div>
+      <div class="node-label">Result Set</div>
+      <div class="node-metric">${data.row_count} rows returned (${data.execution_time_ms} ms)</div>
+    </div>
+  `);
+
+  container.innerHTML = nodes.join('<div class="plan-arrow">➔</div>');
+}
+
+function loadAutoFixIntoComparison() {
+  if (!lastAnalyzedResult) return;
+  navigate("comparison");
+  document.getElementById("compareTitle").value = "Original Scan vs Optimized Lookup";
+  document.getElementById("compareQueryA").value = lastAnalyzedResult.query;
+  document.getElementById("compareQueryB").value = "SELECT id, name FROM customers WHERE id = 1;";
+  showToast("Baseline and candidate queries prepared in Comparison tab.", "success");
+}
+
 // 3. QUERY COMPARISON
 function loadComparisonPreset() {
-  document.getElementById("compareTitle").value = "Primary Key Filter vs Unindexed Scan";
+  document.getElementById("compareTitle").value = "Full Table Scan vs Primary Key Filter";
   document.getElementById("compareQueryA").value = "SELECT * FROM customers WHERE email = 'arun@example.com';";
   document.getElementById("compareQueryB").value = "SELECT id, name FROM customers WHERE id = 1;";
 }
@@ -512,7 +651,7 @@ async function runComparison() {
 
     renderComparisonResult(data);
     loadSavedComparisons();
-    showToast("Comparison benchmark completed!", "success");
+    showToast("Comparison benchmark completed successfully!", "success");
   } catch (err) {
     showToast("Error running comparison.", "error");
   } finally {
@@ -525,15 +664,13 @@ function renderComparisonResult(data) {
   const container = document.getElementById("comparisonResultContainer");
   container.classList.remove("hidden");
 
-  // Verdict Banner
   document.getElementById("compVerdictText").textContent = data.verdict;
   document.getElementById("compSpeedupBadge").innerHTML = `
-    <span class="badge badge-optimized" style="font-size: 0.95rem; padding: 0.4rem 0.8rem;">
+    <span class="badge badge-optimized" style="font-size: 0.95rem; padding: 0.45rem 0.95rem;">
       ⚡ ${data.speedup_percentage}% Speedup
     </span>
   `;
 
-  // Query A
   const qa = data.query_a;
   document.getElementById("compA_time").textContent = `${qa.execution_time_ms} ms`;
   document.getElementById("compA_rows").textContent = qa.total_rows_examined;
@@ -541,7 +678,6 @@ function renderComparisonResult(data) {
   document.getElementById("compA_fts").innerHTML = qa.has_full_table_scan ? '<span class="badge badge-warning">YES</span>' : '<span class="badge badge-optimized">NO</span>';
   document.getElementById("compA_rating").innerHTML = getRatingBadge(qa.performance_rating);
 
-  // Query B
   const qb = data.query_b;
   document.getElementById("compB_time").textContent = `${qb.execution_time_ms} ms`;
   document.getElementById("compB_rows").textContent = qb.total_rows_examined;
@@ -549,7 +685,6 @@ function renderComparisonResult(data) {
   document.getElementById("compB_fts").innerHTML = qb.has_full_table_scan ? '<span class="badge badge-warning">YES</span>' : '<span class="badge badge-optimized">NO</span>';
   document.getElementById("compB_rating").innerHTML = getRatingBadge(qb.performance_rating);
 
-  // Comparison Bar Chart
   const compCtx = document.getElementById("comparisonChart").getContext("2d");
   if (comparisonChartInstance) comparisonChartInstance.destroy();
   comparisonChartInstance = new Chart(compCtx, {
@@ -558,12 +693,12 @@ function renderComparisonResult(data) {
       labels: ["Execution Time (ms)", "Rows Examined"],
       datasets: [
         {
-          label: "Query A",
+          label: "Query A (Baseline)",
           data: [qa.execution_time_ms, qa.total_rows_examined],
           backgroundColor: "#f59e0b"
         },
         {
-          label: "Query B",
+          label: "Query B (Optimized)",
           data: [qb.execution_time_ms, qb.total_rows_examined],
           backgroundColor: "#10b981"
         }
@@ -573,11 +708,11 @@ function renderComparisonResult(data) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { grid: { color: "#232d42" }, ticks: { color: "#9ca3af" } },
-        x: { grid: { color: "#232d42" }, ticks: { color: "#9ca3af" } }
+        y: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } },
+        x: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } }
       },
       plugins: {
-        legend: { labels: { color: "#9ca3af" } }
+        legend: { labels: { color: "#94a3b8" } }
       }
     }
   });
@@ -595,11 +730,11 @@ async function loadSavedComparisons() {
     if (data.items && data.items.length > 0) {
       tbody.innerHTML = data.items.map(item => `
         <tr>
-          <td style="font-weight: 600;">${item.title || "SQL Comparison"}</td>
+          <td style="font-weight: 700; color: #fff;">${item.title || "SQL Comparison"}</td>
           <td class="mono">${item.query_a_time_ms} ms</td>
           <td class="mono">${item.query_b_time_ms} ms</td>
           <td><span class="badge ${item.faster_query === 'QUERY_B' ? 'badge-optimized' : 'badge-warning'}">${item.faster_query}</span></td>
-          <td class="mono" style="color: var(--accent-emerald); font-weight: 700;">+${item.speedup_percentage}%</td>
+          <td class="mono" style="color: var(--emerald-success); font-weight: 800;">+${item.speedup_percentage}%</td>
           <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(item.created_at).toLocaleString()}</td>
         </tr>
       `).join("");
@@ -635,14 +770,15 @@ async function loadHistory(page = 1) {
       tbody.innerHTML = data.items.map(item => `
         <tr>
           <td class="mono">#${item.id}</td>
-          <td class="mono" title="${item.query}">${item.query.length > 50 ? item.query.substring(0, 50) + '...' : item.query}</td>
-          <td class="mono" style="font-weight: 600;">${item.execution_time_ms} ms</td>
+          <td class="mono" title="${item.query}">${item.query.length > 45 ? item.query.substring(0, 45) + '...' : item.query}</td>
+          <td class="mono" style="font-weight: 700;">${item.execution_time_ms} ms</td>
           <td>${item.row_count}</td>
           <td>${getRatingBadge(item.performance_rating)}</td>
           <td>${item.has_full_table_scan ? '<span class="badge badge-warning">YES</span>' : '<span class="badge badge-optimized">NO</span>'}</td>
-          <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(item.created_at).toLocaleString()}</td>
+          <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(item.created_at).toLocaleDateString()}</td>
           <td>
-            <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="loadAndAnalyzeQuery('${encodeURIComponent(item.query)}')">Re-analyze</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.75rem;" onclick="loadAndAnalyzeQuery('${encodeURIComponent(item.query)}')">Re-analyze</button>
+            <button class="btn btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; margin-left: 0.2rem;" onclick="exportAnalysisById(${item.id})">Report</button>
           </td>
         </tr>
       `).join("");
@@ -661,7 +797,7 @@ function changeHistoryPage(delta) {
   }
 }
 
-// 5. ADMIN
+// 5. ADMIN COMMAND CENTER
 async function loadAdmin() {
   if (!token) return;
 
@@ -674,15 +810,7 @@ async function loadAdmin() {
     }
     const data = await res.json();
 
-    document.getElementById("admTotalUsers").textContent = data.user_stats.total_users;
-    document.getElementById("admActiveUsers").textContent = data.user_stats.active_users;
-    document.getElementById("admAdminUsers").textContent = data.user_stats.admin_users;
-
-    document.getElementById("admTotalQueries").textContent = data.usage_stats.total_queries;
-    document.getElementById("admTotalComparisons").textContent = data.usage_stats.total_comparisons;
-    document.getElementById("admAvgLatency").textContent = `${data.usage_stats.avg_platform_latency_ms} ms`;
-
-    // Live Telemetry
+    // Hardware Telemetry
     if (data.telemetry) {
       const t = data.telemetry;
       document.getElementById("admCpuPercent").textContent = `${t.cpu_percent}%`;
@@ -706,7 +834,7 @@ async function loadAdmin() {
     sysEl.textContent = data.health.status;
     sysEl.className = `badge ${data.health.status === 'HEALTHY' ? 'badge-optimized' : 'badge-warning'}`;
 
-    // Load sub-tables
+    // Sub-tables
     await Promise.all([
       loadAdminUsers(),
       loadAdminSecurityLogs(),
@@ -734,11 +862,11 @@ async function loadAdminUsers() {
         <td class="mono">${u.total_queries}</td>
         <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(u.created_at).toLocaleDateString()}</td>
         <td>
-          <button class="btn ${u.is_active ? 'btn-danger' : 'btn-secondary'}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="toggleUserStatus(${u.id}, ${u.is_active})">
+          <button class="btn ${u.is_active ? 'btn-danger' : 'btn-secondary'}" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;" onclick="toggleUserStatus(${u.id}, ${u.is_active})">
             ${u.is_active ? 'Suspend' : 'Activate'}
           </button>
-          <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-left: 0.25rem;" onclick="toggleUserRole(${u.id}, '${u.role}')">
-            ${u.role === 'ADMIN' ? 'Make User' : 'Make Admin'}
+          <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; margin-left: 0.25rem;" onclick="toggleUserRole(${u.id}, '${u.role}')">
+            ${u.role === 'ADMIN' ? 'Demote to User' : 'Promote to Admin'}
           </button>
         </td>
       </tr>
@@ -755,7 +883,7 @@ async function toggleUserStatus(userId, currentStatus) {
       body: JSON.stringify({ is_active: !currentStatus })
     });
     if (res.ok) {
-      showToast(`User ${!currentStatus ? 'activated' : 'suspended'} successfully.`, "success");
+      showToast(`User account status updated.`, "success");
       loadAdminUsers();
     } else {
       const d = await res.json();
@@ -778,7 +906,7 @@ async function toggleUserRole(userId, currentRole) {
       loadAdminUsers();
     } else {
       const d = await res.json();
-      showToast(d.detail || "Failed to update user role.", "error");
+      showToast(d.detail || "Failed to update role.", "error");
     }
   } catch (e) {
     showToast("Network error updating role.", "error");
@@ -798,12 +926,12 @@ async function loadAdminSecurityLogs() {
           <td class="mono">#${l.id}</td>
           <td>${l.user_email || '<span style="color:var(--text-dim)">Anonymous</span>'}</td>
           <td><span class="badge badge-critical">${l.violation_type}</span></td>
-          <td class="mono" style="color: var(--accent-rose);">${l.attempted_query.length > 55 ? l.attempted_query.substring(0, 55) + '...' : l.attempted_query}</td>
+          <td class="mono" style="color: var(--rose-danger);">${l.attempted_query.length > 55 ? l.attempted_query.substring(0, 55) + '...' : l.attempted_query}</td>
           <td style="color: var(--text-dim); font-size: 0.8rem;">${new Date(l.created_at).toLocaleString()}</td>
         </tr>
       `).join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security violations detected.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security threats logged.</td></tr>`;
     }
   } catch (err) {
     console.error("Error loading security logs:", err);
@@ -827,7 +955,7 @@ async function loadAdminFeedbacks() {
           <td style="max-width: 250px;">${f.comment}</td>
           <td><span class="badge ${f.status === 'RESOLVED' ? 'badge-optimized' : f.status === 'REVIEWED' ? 'badge-info' : 'badge-warning'}">${f.status}</span></td>
           <td>
-            <select style="font-size: 0.75rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 0.2rem; border-radius: 4px;" onchange="updateFeedbackStatus(${f.id}, this.value)">
+            <select style="font-size: 0.75rem; background: rgba(10, 15, 29, 0.9); color: #fff; border: 1px solid var(--glass-card-border); padding: 0.25rem; border-radius: 6px;" onchange="updateFeedbackStatus(${f.id}, this.value)">
               <option value="PENDING" ${f.status === 'PENDING' ? 'selected' : ''}>Pending</option>
               <option value="REVIEWED" ${f.status === 'REVIEWED' ? 'selected' : ''}>Reviewed</option>
               <option value="RESOLVED" ${f.status === 'RESOLVED' ? 'selected' : ''}>Resolved</option>
@@ -836,7 +964,7 @@ async function loadAdminFeedbacks() {
         </tr>
       `).join("");
     } else {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No user feedback yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No feedback submitted yet.</td></tr>`;
     }
   } catch (err) {
     console.error("Error loading feedbacks:", err);
@@ -898,7 +1026,7 @@ async function handleFeedbackSubmit(event) {
     if (res.ok) {
       closeFeedbackModal();
       document.getElementById("fbComment").value = "";
-      showToast("Thank you for your feedback! It helps us build a better platform.", "success");
+      showToast("Thank you for your feedback! It helps us continuously improve the platform.", "success");
     } else {
       showToast("Failed to submit feedback.", "error");
     }
@@ -938,6 +1066,21 @@ function exportCurrentReport() {
   document.getElementById("reportModal").classList.remove("hidden");
 }
 
+async function exportAnalysisById(id) {
+  try {
+    const res = await apiRequest(`/api/v1/queries/analyses/${id}/export`);
+    if (res.ok) {
+      const report = await res.json();
+      document.getElementById("reportJsonView").textContent = JSON.stringify(report, null, 2);
+      document.getElementById("reportModal").classList.remove("hidden");
+    } else {
+      showToast("Failed to load report.", "error");
+    }
+  } catch (e) {
+    showToast("Error retrieving report.", "error");
+  }
+}
+
 function closeReportModal() {
   document.getElementById("reportModal").classList.add("hidden");
 }
@@ -945,7 +1088,7 @@ function closeReportModal() {
 function copyReportText() {
   const text = document.getElementById("reportJsonView").textContent;
   navigator.clipboard.writeText(text).then(() => {
-    showToast("Performance report JSON copied to clipboard!", "success");
+    showToast("Performance audit report JSON copied to clipboard!", "success");
   });
 }
 
@@ -959,4 +1102,3 @@ function getRatingBadge(rating) {
     return `<span class="badge badge-critical">CRITICAL</span>`;
   }
 }
-

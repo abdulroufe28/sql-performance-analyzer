@@ -16,10 +16,16 @@ def test_frontend_index_served():
 def test_frontend_css_served():
     response = client.get("/css/styles.css")
     assert response.status_code == 200
-    assert "--bg-primary" in response.text
+    assert "--glass-bg" in response.text or "--bg-dark" in response.text
 
 
 def test_frontend_js_served():
     response = client.get("/js/app.js")
     assert response.status_code == 200
     assert "runAnalyze" in response.text
+
+
+def test_frontend_logo_served():
+    response = client.get("/assets/logo.svg")
+    assert response.status_code == 200
+    assert "<svg" in response.text

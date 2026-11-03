@@ -3,50 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SQL Performance Analyzer | Database Monitoring & Query Optimization</title>
+  <title>SQL Performance Analyzer | Database Performance Monitoring & Query Optimization</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
   <link rel="stylesheet" href="/css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-  <!-- Navigation Bar -->
+  <!-- Glassmorphism Navigation Bar -->
   <header class="navbar">
-    <div style="display: flex; align-items: center; gap: 2rem;">
+    <div style="display: flex; align-items: center; gap: 2.25rem;">
       <a href="#" class="brand" onclick="navigate('dashboard'); return false;">
-        <div class="brand-icon">⚡</div>
-        <span>SQL Performance Analyzer</span>
+        <img src="/assets/logo.svg" alt="SQL Performance Analyzer Logo" class="brand-logo-img">
+        <span class="brand-text">SQL Performance Analyzer</span>
       </a>
       <nav class="nav-links" id="mainNav">
         <button class="nav-btn active" data-view="dashboard" onclick="navigate('dashboard')">Dashboard</button>
         <button class="nav-btn" data-view="analyzer" onclick="navigate('analyzer')">Query Analyzer</button>
         <button class="nav-btn" data-view="comparison" onclick="navigate('comparison')">Query Comparison</button>
         <button class="nav-btn" data-view="history" onclick="navigate('history')">History</button>
-        <button class="nav-btn hidden" id="adminNavBtn" data-view="admin" onclick="navigate('admin')">Admin</button>
+        <button class="nav-btn hidden" id="adminNavBtn" data-view="admin" onclick="navigate('admin')">Admin Command Center</button>
       </nav>
     </div>
 
     <div class="nav-auth" id="navAuth">
-      <div id="userProfile" class="hidden" style="display: flex; align-items: center; gap: 0.75rem;">
-        <button class="btn btn-secondary" onclick="openFeedbackModal()" style="padding: 0.4rem 0.8rem; font-size: 0.825rem;">💬 Feedback</button>
+      <div id="userProfile" class="hidden" style="display: flex; align-items: center; gap: 0.85rem;">
+        <button class="btn btn-secondary" onclick="openFeedbackModal()" style="padding: 0.45rem 0.95rem; font-size: 0.825rem;">💬 Feedback</button>
         <div class="user-badge">
           <span id="userEmailText">user@example.com</span>
           <span class="role-tag" id="userRoleTag">USER</span>
         </div>
-        <button class="btn btn-secondary" onclick="logout()" style="padding: 0.4rem 0.8rem; font-size: 0.825rem;">Logout</button>
+        <button class="btn btn-secondary" onclick="logout()" style="padding: 0.45rem 0.95rem; font-size: 0.825rem;">Logout</button>
       </div>
       <button class="btn btn-primary" id="loginBtn" onclick="openAuthModal('login')">Sign In</button>
     </div>
   </header>
 
-  <!-- Main View Container -->
+  <!-- Main Application Container -->
   <main class="main-content">
 
     <!-- 1. DASHBOARD VIEW -->
     <section id="view-dashboard">
       <div class="section-header">
         <div>
-          <h1 class="section-title">Performance Dashboard</h1>
-          <p class="section-subtitle">Real-time metrics, query latencies, and execution bottleneck insights.</p>
+          <h1 class="section-title">Performance Analytics Dashboard</h1>
+          <p class="section-subtitle">Real-time database performance telemetry, query execution latency, and bottleneck distributions.</p>
         </div>
         <button class="btn btn-primary" onclick="navigate('analyzer')">⚡ New SQL Analysis</button>
       </div>
@@ -56,23 +57,23 @@
         <div class="stat-card">
           <span class="stat-label">Total Queries Analyzed</span>
           <span class="stat-value" id="dashTotalQueries">0</span>
-          <span class="stat-subtext">Executed on analysis DB</span>
+          <span class="stat-subtext">Executed in controlled analysis sandbox</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">Average Latency</span>
+          <span class="stat-label">Average Execution Latency</span>
           <span class="stat-value" id="dashAvgLatency">0.00 <small style="font-size: 1rem; color: var(--text-dim);">ms</small></span>
-          <span class="stat-subtext">Across all executions</span>
+          <span class="stat-subtext">Monotonic timer profiling</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Full Table Scans</span>
-          <span class="stat-value" id="dashFtsCount" style="color: var(--accent-amber);">0</span>
-          <span class="stat-subtext">Missing index candidates</span>
+          <span class="stat-value" id="dashFtsCount" style="color: var(--amber-warning);">0</span>
+          <span class="stat-subtext">Missing index opportunities</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Free Comparison Quota</span>
           <span class="stat-value" id="dashQuotaText">0 / 10</span>
-          <div class="progress-track">
-            <div class="progress-fill" id="dashQuotaBar" style="width: 0%;"></div>
+          <div class="efficiency-meter-bar" style="margin-top: 0.6rem;">
+            <div class="efficiency-meter-fill" id="dashQuotaBar" style="width: 0%; background: linear-gradient(90deg, var(--cyan-primary), var(--emerald-success));"></div>
           </div>
         </div>
       </div>
@@ -80,43 +81,43 @@
       <!-- Charts Section -->
       <div class="charts-grid">
         <div class="chart-card">
-          <h3 class="card-title">Recent Query Latencies (ms)</h3>
+          <h3 class="card-title">📈 Query Latency Trends (ms)</h3>
           <canvas id="latencyChart"></canvas>
         </div>
         <div class="chart-card">
-          <h3 class="card-title">Query Optimization Distribution</h3>
+          <h3 class="card-title">🎯 Query Health Breakdown</h3>
           <canvas id="healthChart"></canvas>
         </div>
       </div>
 
-      <!-- Slow Queries & Recent Activity Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 1.5rem;">
+      <!-- Slowest Queries & Recent Activity Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(490px, 1fr)); gap: 1.6rem;">
         <div class="card">
-          <h3 class="card-title">⚠️ Top Slowest Queries</h3>
+          <h3 class="card-title">⚠️ Slowest Queries Requiring Tuning</h3>
           <div class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Query</th>
+                  <th>Query Statement</th>
                   <th>Latency</th>
                   <th>Rows</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="slowestQueriesTable">
-                <tr><td colspan="4" style="text-align: center; color: var(--text-dim);">No queries analyzed yet.</td></tr>
+                <tr><td colspan="4" style="text-align: center; color: var(--text-dim);">No queries profiled yet.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <div class="card">
-          <h3 class="card-title">🕒 Recent Analyses</h3>
+          <h3 class="card-title">🕒 Recent Execution Activity</h3>
           <div class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Query</th>
+                  <th>Query Statement</th>
                   <th>Rating</th>
                   <th>Latency</th>
                 </tr>
@@ -134,14 +135,36 @@
     <section id="view-analyzer" class="hidden">
       <div class="section-header">
         <div>
-          <h1 class="section-title">Query Analyzer & EXPLAIN Engine</h1>
-          <p class="section-subtitle">Execute read-only SQL safely, inspect execution plans, and discover bottlenecks.</p>
+          <h1 class="section-title">Query Analyzer & EXPLAIN Optimization Engine</h1>
+          <p class="section-subtitle">Deep MySQL EXPLAIN profiling, bottleneck detection, visual execution flows, and index tuning advice.</p>
         </div>
       </div>
 
+      <!-- Interactive Schema Inspector -->
+      <div class="schema-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+          <span style="font-size: 0.775rem; text-transform: uppercase; font-weight: 700; color: var(--cyan-glow); letter-spacing: 0.05em;">
+            🗄️ Database Schema Inspector (Click column to insert):
+          </span>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">Database: sql_performance_analysis</span>
+        </div>
+        <div id="schemaTagsContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          <span style="color: var(--text-dim); font-size: 0.8rem;">Loading schema...</span>
+        </div>
+      </div>
+
+      <!-- Query Input Glassmorphic Card -->
       <div class="card">
-        <label class="form-label">Query Presets / Quick Test Cases:</label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+          <label class="form-label" style="margin-bottom: 0;">Interactive SQL Query Editor:</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary" onclick="formatSqlQuery()" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">✨ Format SQL</button>
+            <button class="btn btn-secondary" onclick="clearSqlEditor()" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">🧹 Clear</button>
+          </div>
+        </div>
+
         <div class="presets-bar">
+          <span style="font-size: 0.8rem; color: var(--text-dim); margin-right: 0.35rem;">Test Presets:</span>
           <button class="preset-chip" onclick="loadPreset('indexed')">🎯 Primary Key Indexed Lookup</button>
           <button class="preset-chip" onclick="loadPreset('full_scan')">⚠️ Full Table Scan (Unindexed)</button>
           <button class="preset-chip" onclick="loadPreset('filesort')">🔄 ORDER BY Filesort</button>
@@ -149,12 +172,14 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="sqlInput">SQL SELECT Statement:</label>
           <textarea id="sqlInput" class="sql-textarea" placeholder="SELECT * FROM customers WHERE id = 1;"></textarea>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.8rem; color: var(--text-dim);">🔒 Read-only safe execution mode enabled. Destructive DDL/DML is blocked.</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="badge badge-info">🛡️ Sandbox Guard Active</span>
+            <span style="font-size: 0.8rem; color: var(--text-dim);">Strict read-only enforcement. Destructive DDL/DML will trigger security audit log.</span>
+          </div>
           <button class="btn btn-primary" id="btnRunQuery" onclick="runAnalyze()">
             <span id="runSpinner" class="hidden">⏳</span> Run & Analyze Query
           </button>
@@ -163,48 +188,98 @@
 
       <!-- Analysis Results Area -->
       <div id="analysisResultContainer" class="hidden">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-          <button class="btn btn-secondary" onclick="exportCurrentReport()">📥 Export Performance Audit Report</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.35rem; font-weight: 800; color: #fff;">📊 Performance Diagnostics</h2>
+          <button class="btn btn-secondary" onclick="exportCurrentReport()">📥 Export Official Audit Report</button>
         </div>
+
         <!-- KPI Row -->
         <div class="stats-grid">
           <div class="stat-card">
             <span class="stat-label">Execution Time</span>
             <span class="stat-value" id="resExecTime">0.00 ms</span>
+            <span class="stat-subtext">True database round-trip</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">Rows Returned</span>
             <span class="stat-value" id="resRowCount">0</span>
+            <span class="stat-subtext">Result set size</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">Rows Examined</span>
             <span class="stat-value" id="resRowsExamined">0</span>
+            <span class="stat-subtext">Scanned by storage engine</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Query Cost</span>
+            <span class="stat-label">Query Optimizer Cost</span>
             <span class="stat-value" id="resQueryCost">0.00</span>
+            <span class="stat-subtext">MySQL cost model value</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">Optimization Rating</span>
-            <div style="margin-top: 0.5rem;" id="resRatingBadge"></div>
+            <div style="margin-top: 0.65rem;" id="resRatingBadge"></div>
+            <span class="stat-subtext">Evidence-based verdict</span>
           </div>
         </div>
 
+        <!-- Selectivity & Scan Efficiency Meter -->
+        <div class="efficiency-card">
+          <div class="efficiency-header">
+            <div>
+              <span style="font-size: 0.825rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">
+                ⚡ Storage Engine Scan Efficiency (Selectivity)
+              </span>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">
+                Ratio of rows returned compared to total rows inspected in database memory.
+              </p>
+            </div>
+            <span id="resEfficiencyText" style="font-family: var(--font-mono); font-weight: 800; font-size: 1.15rem; color: var(--cyan-glow);">100%</span>
+          </div>
+          <div class="efficiency-meter-bar">
+            <div class="efficiency-meter-fill" id="resEfficiencyBar" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Interactive Visual Execution Tree Flowchart -->
+        <div class="card">
+          <h3 class="card-title">🌳 Visual Execution Pipeline (Node Graph)</h3>
+          <div class="visual-plan-container" id="visualPlanContainer">
+            <!-- Dynamically generated plan nodes -->
+          </div>
+        </div>
+
+        <!-- One-Click Auto-Optimizer Suggestion Box -->
+        <div id="autoFixContainer" class="auto-fix-box hidden">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+              <span class="badge badge-info">💡 One-Click Optimization</span>
+              <strong style="color: #fff; font-size: 0.95rem;">Automated Query & Index Rewrite Available</strong>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);" id="autoFixDescription">
+              Adding a targeted index can eliminate this full table scan.
+            </p>
+            <code id="autoFixCode" class="mono" style="display: block; margin-top: 0.5rem; background: rgba(0,0,0,0.4); padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; color: #38bdf8;"></code>
+          </div>
+          <button class="btn btn-primary" onclick="loadAutoFixIntoComparison()" style="white-space: nowrap;">
+            Benchmark Rewrite ⚡
+          </button>
+        </div>
+
         <!-- Bottlenecks & Recommendations Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 1.6rem; margin-bottom: 1.75rem;">
           <div class="card">
             <h3 class="card-title">🚨 Identified Bottlenecks</h3>
             <div id="bottlenecksList"></div>
           </div>
           <div class="card">
-            <h3 class="card-title">💡 Evidence-Based Recommendations</h3>
+            <h3 class="card-title">💡 Actionable Optimization Recommendations</h3>
             <div id="recommendationsList"></div>
           </div>
         </div>
 
         <!-- Tabular EXPLAIN Plan -->
         <div class="card">
-          <h3 class="card-title">🔍 Tabular Execution Plan (EXPLAIN)</h3>
+          <h3 class="card-title">🔍 Tabular Execution Plan (EXPLAIN Matrix)</h3>
           <div class="table-container">
             <table class="data-table">
               <thead>
@@ -212,12 +287,12 @@
                   <th>id</th>
                   <th>select_type</th>
                   <th>table</th>
-                  <th>type (Access)</th>
+                  <th>type (Access Mode)</th>
                   <th>possible_keys</th>
                   <th>key (Index Used)</th>
                   <th>rows</th>
                   <th>filtered</th>
-                  <th>Extra</th>
+                  <th>Extra Operations</th>
                 </tr>
               </thead>
               <tbody id="explainTableBody"></tbody>
@@ -225,7 +300,7 @@
           </div>
         </div>
 
-        <!-- Result Preview -->
+        <!-- Result Preview Table -->
         <div class="card">
           <h3 class="card-title">📄 Result Rows Preview (Top 50 rows)</h3>
           <div class="table-container">
@@ -243,20 +318,20 @@
       <div class="section-header">
         <div>
           <h1 class="section-title">Query Comparison & A/B Benchmark</h1>
-          <p class="section-subtitle">Benchmark before-and-after query rewrites side-by-side with real database measurements.</p>
+          <p class="section-subtitle">Benchmark original queries vs optimized candidates with true database metrics.</p>
         </div>
         <button class="btn btn-secondary" onclick="loadComparisonPreset()">Load A/B Optimization Preset</button>
       </div>
 
       <div class="card">
         <div class="form-group">
-          <label class="form-label" for="compareTitle">Comparison Title (Optional):</label>
-          <input type="text" id="compareTitle" class="input-text" placeholder="e.g. Full Table Scan vs Primary Key Filter">
+          <label class="form-label" for="compareTitle">Comparison Benchmark Title (Optional):</label>
+          <input type="text" id="compareTitle" class="input-text" placeholder="e.g. Unindexed Full Scan vs Indexed Key Filter">
         </div>
 
         <div class="comparison-grid">
           <div>
-            <label class="form-label">Query A (Original / Unoptimized):</label>
+            <label class="form-label">Query A (Original / Baseline):</label>
             <textarea id="compareQueryA" class="sql-textarea" placeholder="SELECT * FROM customers WHERE email = 'arun@example.com';"></textarea>
           </div>
           <div>
@@ -275,7 +350,9 @@
         <!-- Verdict Banner -->
         <div class="verdict-banner">
           <div>
-            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-emerald); font-weight: 700;">Performance Verdict</span>
+            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--emerald-success); font-weight: 800;">
+              Performance Verdict
+            </span>
             <div class="verdict-text" id="compVerdictText"></div>
           </div>
           <div id="compSpeedupBadge"></div>
@@ -285,7 +362,7 @@
         <div class="comparison-grid">
           <!-- Card A -->
           <div class="card">
-            <h3 class="card-title">Query A Results</h3>
+            <h3 class="card-title">Query A (Baseline)</h3>
             <div class="table-container" style="margin-bottom: 1rem;">
               <table class="data-table">
                 <tr><th>Execution Time</th><td id="compA_time" class="mono"></td></tr>
@@ -299,7 +376,7 @@
 
           <!-- Card B -->
           <div class="card">
-            <h3 class="card-title">Query B Results</h3>
+            <h3 class="card-title">Query B (Optimized)</h3>
             <div class="table-container" style="margin-bottom: 1rem;">
               <table class="data-table">
                 <tr><th>Execution Time</th><td id="compB_time" class="mono"></td></tr>
@@ -333,7 +410,7 @@
                 <th>Query B Time</th>
                 <th>Faster</th>
                 <th>Speedup</th>
-                <th>Created</th>
+                <th>Timestamp</th>
               </tr>
             </thead>
             <tbody id="comparisonsHistoryTable">
@@ -359,13 +436,13 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Query</th>
+                <th>Query Statement</th>
                 <th>Time (ms)</th>
                 <th>Rows</th>
                 <th>Rating</th>
                 <th>Full Scan</th>
                 <th>Date</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="historyTableBody">
@@ -385,25 +462,26 @@
       </div>
     </section>
 
-    <!-- 5. ADMIN VIEW -->
+    <!-- 5. ADMIN COMMAND CENTER -->
     <section id="view-admin" class="hidden">
       <div class="section-header">
         <div>
-          <h1 class="section-title">Admin Management & Server Console</h1>
-          <p class="section-subtitle">Real-time system telemetry, user access control, security threat logs, and user satisfaction feedback.</p>
+          <h1 class="section-title">Admin Command Center & Server Management</h1>
+          <p class="section-subtitle">Real-time hardware telemetry, user access management, security threat logs, and customer feedback desk.</p>
         </div>
+        <button class="btn btn-secondary" onclick="loadAdmin()">🔄 Refresh Diagnostics</button>
       </div>
 
       <!-- Live Server Hardware Telemetry -->
-      <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-muted);">🖥️ Live Server Hardware Telemetry</h3>
+      <h3 style="margin-bottom: 1rem; font-size: 1.15rem; color: var(--cyan-glow);">🖥️ Live Server Hardware Telemetry</h3>
       <div class="stats-grid">
         <div class="stat-card">
-          <span class="stat-label">CPU Usage</span>
+          <span class="stat-label">CPU Load</span>
           <span class="stat-value" id="admCpuPercent">0%</span>
           <span class="stat-subtext">Real-time processor load</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">RAM Memory Usage</span>
+          <span class="stat-label">RAM Memory Consumed</span>
           <span class="stat-value" id="admRamUsage">0 / 0 GB</span>
           <span class="stat-subtext" id="admRamPercent">0% consumed</span>
         </div>
@@ -413,106 +491,21 @@
           <span class="stat-subtext" id="admDiskPercent">0% consumed</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">Active Server Threads</span>
+          <span class="stat-label">Active Worker Threads</span>
           <span class="stat-value" id="admActiveThreads">0</span>
-          <span class="stat-subtext">Concurrent worker threads</span>
+          <span class="stat-subtext">FastAPI concurrent workers</span>
         </div>
       </div>
 
-      <!-- User Stats -->
-      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">👥 User Management & Access Control</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Total Users</span>
-          <span class="stat-value" id="admTotalUsers">0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Active Users</span>
-          <span class="stat-value" id="admActiveUsers" style="color: var(--accent-emerald);">0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Admin Accounts</span>
-          <span class="stat-value" id="admAdminUsers" style="color: var(--accent-amber);">0</span>
-        </div>
-      </div>
-
-      <!-- Users Table -->
-      <div class="card">
-        <h3 class="card-title">User Accounts & Roles</h3>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Queries Run</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="adminUsersTableBody">
-              <tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Loading users...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Security Threats Audit -->
-      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--accent-rose);">🛡️ Blocked Security Threats & Malicious Queries</h3>
+      <!-- Database Health Status -->
+      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.15rem; color: var(--text-muted);">🩺 Database Connectivity & Ping</h3>
       <div class="card">
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>User</th>
-                <th>Violation Type</th>
-                <th>Blocked Statement</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody id="adminSecurityLogsBody">
-              <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security violations detected.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- User Satisfaction Feedback -->
-      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">⭐ User Satisfaction & Feedback</h3>
-      <div class="card">
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>User</th>
-                <th>Rating</th>
-                <th>Category</th>
-                <th>Comment</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="adminFeedbackTableBody">
-              <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No feedback submitted yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Database Health -->
-      <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem; color: var(--text-muted);">🩺 Database Health & Ping</h3>
-      <div class="card">
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Target</th>
+                <th>Service Name</th>
+                <th>Target Schema</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -523,15 +516,83 @@
                 <td><span class="badge badge-optimized" id="admAppDbStatus">ONLINE</span></td>
               </tr>
               <tr>
-                <td>Analysis Database</td>
+                <td>Controlled Analysis Database</td>
                 <td><code>sql_performance_analysis</code></td>
                 <td><span class="badge badge-optimized" id="admAnalysisDbStatus">ONLINE</span></td>
               </tr>
               <tr>
-                <td>Overall System Status</td>
-                <td>API & DB Gateway</td>
+                <td>Overall API Gateway Health</td>
+                <td>Core Services</td>
                 <td><span class="badge badge-optimized" id="admSystemStatus">HEALTHY</span></td>
               </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- User Directory Management -->
+      <h3 style="margin: 1.75rem 0 1rem; font-size: 1.15rem; color: var(--text-muted);">👥 User Directory & Access Control</h3>
+      <div class="card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email Address</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Queries Executed</th>
+                <th>Member Since</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Loading user directory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Security Threats & Injection Firewalls -->
+      <h3 style="margin: 1.75rem 0 1rem; font-size: 1.15rem; color: var(--rose-danger);">🛡️ Blocked Security Threats & Malicious Queries</h3>
+      <div class="card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Threat Classification</th>
+                <th>Blocked Statement Payload</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="adminSecurityLogsBody">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No security threats logged.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- User Feedback Desk -->
+      <h3 style="margin: 1.75rem 0 1rem; font-size: 1.15rem; color: var(--amber-warning);">⭐ User Satisfaction & Feedback Desk</h3>
+      <div class="card">
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Rating</th>
+                <th>Category</th>
+                <th>Feedback Message</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminFeedbackTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No user feedback submitted yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -540,11 +601,16 @@
 
   </main>
 
-  <!-- Auth Modal -->
+  <!-- Glassmorphism & Neumorphism Authentication Modal -->
   <div class="modal-overlay hidden" id="authModal">
     <div class="modal-content">
-      <h2 class="modal-title" id="authModalTitle">Sign In</h2>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;" id="authModalDesc">Enter your account credentials to access query analyzer.</p>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <img src="/assets/logo.svg" alt="Logo" style="width: 36px; height: 36px; filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));">
+        <div>
+          <h2 class="modal-title" id="authModalTitle">Sign In</h2>
+          <p style="font-size: 0.8rem; color: var(--text-muted);" id="authModalDesc">Enter your account credentials to access query analyzer.</p>
+        </div>
+      </div>
 
       <form id="authForm" onsubmit="handleAuthSubmit(event)">
         <div class="form-group hidden" id="fullNameGroup">
@@ -565,10 +631,10 @@
 
       <div style="margin-top: 1.25rem; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
         <span id="authTogglePrompt">Don't have an account?</span>
-        <a href="#" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;" id="authToggleLink" onclick="toggleAuthMode(); return false;">Create one</a>
+        <a href="#" style="color: var(--cyan-glow); text-decoration: none; font-weight: 700;" id="authToggleLink" onclick="toggleAuthMode(); return false;">Create one</a>
       </div>
 
-      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeAuthModal()">✕</button>
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.3rem;" onclick="closeAuthModal()">✕</button>
     </div>
   </div>
 
@@ -591,7 +657,7 @@
 
         <div class="form-group">
           <label class="form-label">Satisfaction Rating:</label>
-          <div style="display: flex; gap: 0.5rem; font-size: 1.5rem; cursor: pointer;" id="starRatingContainer">
+          <div style="display: flex; gap: 0.6rem; font-size: 1.75rem; cursor: pointer;" id="starRatingContainer">
             <span onclick="setRating(1)">★</span>
             <span onclick="setRating(2)">★</span>
             <span onclick="setRating(3)">★</span>
@@ -602,34 +668,34 @@
 
         <div class="form-group">
           <label class="form-label">Comments / Suggestions:</label>
-          <textarea id="fbComment" class="input-text" style="min-height: 90px;" placeholder="Tell us what you liked or what could be improved..." required></textarea>
+          <textarea id="fbComment" class="input-text" style="min-height: 95px;" placeholder="Tell us what you liked or what could be improved..." required></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
       </form>
 
-      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeFeedbackModal()">✕</button>
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.3rem;" onclick="closeFeedbackModal()">✕</button>
     </div>
   </div>
 
-  <!-- Report Export Modal -->
+  <!-- Performance Report Modal -->
   <div class="modal-overlay hidden" id="reportModal">
-    <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-content" style="max-width: 620px;">
       <h2 class="modal-title">📑 Performance Audit Report</h2>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Official evidence-based performance verification report.</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Official evidence-based query performance analysis report.</p>
       
-      <pre id="reportJsonView" class="mono" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; font-size: 0.8rem; max-height: 350px; overflow-y: auto; color: #a5f3fc; border: 1px solid var(--border-color);"></pre>
+      <pre id="reportJsonView" class="mono" style="background: rgba(10, 15, 29, 0.9); padding: 1.15rem; border-radius: 10px; font-size: 0.8rem; max-height: 360px; overflow-y: auto; color: #a5f3fc; border: 1px solid var(--glass-card-border); box-shadow: var(--neu-inset);"></pre>
 
       <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem;">
         <button class="btn btn-secondary" onclick="copyReportText()">📋 Copy JSON</button>
         <button class="btn btn-primary" onclick="closeReportModal()">Close</button>
       </div>
 
-      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem;" onclick="closeReportModal()">✕</button>
+      <button style="position: absolute; top: 1.25rem; right: 1.5rem; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.3rem;" onclick="closeReportModal()">✕</button>
     </div>
   </div>
 
-  <!-- Toast Container -->
+  <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="/js/app.js"></script>

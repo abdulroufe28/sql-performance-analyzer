@@ -1,10 +1,11 @@
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_current_user, get_db
+from backend.app.core.database import analysis_engine
 from backend.app.models.query_analysis import QueryAnalysis
 from backend.app.models.query_comparison import QueryComparison
 from backend.app.models.security_audit import SecurityAuditLog
@@ -30,6 +31,30 @@ router = APIRouter(
 )
 
 FREE_COMPARISON_QUOTA = 10
+
+
+@router.get("/schema")
+def get_analysis_schema(
+    current_user: User = Depends(get_current_user),
+):
+    insp = inspect(analysis_engine)
+    schema_tables = []
+    for tbl_name in insp.get_table_names():
+        cols = insp.get_columns(tbl_name)
+        pk_constraint = insp.get_pk_constraint(tbl_name)
+        pk_cols = set(pk_constraint.get("constrained_columns", [])) if pk_constraint else set()
+        schema_tables.append({
+            "name": tbl_name,
+            "columns": [
+                {
+                    "name": c["name"],
+                    "type": str(c["type"]).split(" COLLATE")[0],
+                    "is_primary": c["name"] in pk_cols,
+                }
+                for c in cols
+            ],
+        })
+    return {"tables": schema_tables}
 
 
 @router.post(
