@@ -92,7 +92,6 @@ async function checkAuth() {
 function updateAuthUI() {
   const userProfile = document.getElementById("userProfile");
   const loginBtn = document.getElementById("loginBtn");
-  const adminNavBtn = document.getElementById("adminNavBtn");
 
   if (currentUser) {
     userProfile.classList.remove("hidden");
@@ -101,13 +100,9 @@ function updateAuthUI() {
     const roleTag = document.getElementById("userRoleTag");
     roleTag.textContent = currentUser.role;
     roleTag.className = `role-tag ${currentUser.role === "ADMIN" ? "admin" : ""}`;
-
-  if (adminNavBtn) {
-    if (currentUser && currentUser.role === "ADMIN") {
-      adminNavBtn.classList.remove("hidden");
-    } else {
-      adminNavBtn.classList.add("hidden");
-    }
+  } else {
+    userProfile.classList.add("hidden");
+    loginBtn.classList.remove("hidden");
   }
 }
 
