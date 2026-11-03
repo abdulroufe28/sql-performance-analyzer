@@ -29,3 +29,15 @@ def test_frontend_logo_served():
     response = client.get("/assets/logo.svg")
     assert response.status_code == 200
     assert "<svg" in response.text
+
+
+def test_admin_portal_served():
+    response = client.get("/admin.html")
+    assert response.status_code == 200
+    assert "Superadmin Operations Portal" in response.text
+
+
+def test_admin_js_served():
+    response = client.get("/js/admin.js")
+    assert response.status_code == 200
+    assert "verifyAdminAccess" in response.text

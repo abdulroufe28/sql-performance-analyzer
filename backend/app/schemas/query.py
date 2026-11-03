@@ -37,6 +37,7 @@ class QueryAnalyzeResponse(BaseModel):
     performance_rating: str = "OPTIMIZED"
     bottlenecks: list[BottleneckItem] = []
     recommendations: list[RecommendationItem] = []
+    anti_patterns: list[dict[str, Any]] = []
     tabular_plan: list[dict[str, Any]] = []
     json_plan: dict[str, Any] = {}
 
@@ -82,6 +83,7 @@ class QueryComparisonMetric(BaseModel):
     performance_rating: str = "OPTIMIZED"
     bottlenecks: list[BottleneckItem] = []
     recommendations: list[RecommendationItem] = []
+    anti_patterns: list[dict[str, Any]] = []
 
 
 class QueryCompareResponse(BaseModel):

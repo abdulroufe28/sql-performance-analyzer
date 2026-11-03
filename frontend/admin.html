@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superadmin Operations Portal | SQL Performance Analyzer</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Superadmin Navbar -->
+  <header class="navbar">
+    <div style="display: flex; align-items: center; gap: 2rem;">
+      <a href="/admin.html" class="brand">
+        <img src="/assets/logo.svg" alt="Logo" class="brand-logo-img">
+        <span class="brand-text">Superadmin Operations</span>
+      </a>
+      <nav class="nav-links" id="adminTabsNav">
+        <button class="nav-btn active" data-tab="telemetry" onclick="switchAdminTab('telemetry')">🖥️ Telemetry & System</button>
+        <button class="nav-btn" data-tab="users" onclick="switchAdminTab('users')">👥 User Directory</button>
+        <button class="nav-btn" data-tab="security" onclick="switchAdminTab('security')">🛡️ Firewall Threats</button>
+        <button class="nav-btn" data-tab="feedback" onclick="switchAdminTab('feedback')">⭐ Feedback Desk</button>
+      </nav>
+    </div>
+
+    <div class="nav-auth">
+      <a href="/" class="btn btn-secondary" style="padding: 0.45rem 0.95rem; font-size: 0.825rem; text-decoration: none;">Public App ➔</a>
+      <div id="adminUserPill" class="hidden" style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="user-badge">
+          <span id="adminEmailDisplay">admin@example.com</span>
+          <span class="role-tag admin">ADMIN</span>
+        </div>
+        <button class="btn btn-secondary" onclick="adminLogout()" style="padding: 0.45rem 0.95rem; font-size: 0.825rem;">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Admin Content Area -->
+  <main class="main-content">
+
+    <!-- Gatekeeper Screen (Shown if not logged in or not admin) -->
+    <div id="adminGatekeeper" class="modal-content" style="max-width: 460px; margin: 4rem auto 0; text-align: center;">
+      <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
+        <img src="/assets/logo.svg" alt="Logo" style="width: 52px; height: 52px; filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.5));">
+      </div>
+      <h2 class="modal-title">Restricted Superadmin Portal</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+        This console is strictly restricted to platform administrators. Please authenticate with administrator credentials to continue.
+      </p>
+
+      <form onsubmit="handleAdminLogin(event)" style="text-align: left;">
+        <div class="form-group">
+          <label class="form-label">Administrator Email:</label>
+          <input type="email" id="admGateEmail" class="input-text" placeholder="admin@example.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password:</label>
+          <input type="password" id="admGatePassword" class="input-text" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" id="admGateSubmitBtn">
+          Authenticate Administrator
+        </button>
+      </form>
+    </div>
+
+    <!-- Admin Operations Portal (Shown when authenticated as ADMIN) -->
+    <div id="adminDashboard" class="hidden">
+
+      <!-- TAB 1: TELEMETRY & HARDWARE -->
+      <section id="tab-telemetry">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Live Server Telemetry & Platform Diagnostics</h1>
+            <p class="section-subtitle">Real-time hardware resource consumption, thread activity, and database ping health.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAdminDiagnostics()">🔄 Refresh Diagnostics</button>
+        </div>
+
+        <!-- Hardware Gauges -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">CPU Processor Load</span>
+            <span class="stat-value" id="admCpuVal">0%</span>
+            <span class="stat-subtext">Real-time host processor usage</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">RAM Memory Consumed</span>
+            <span class="stat-value" id="admRamVal">0 / 0 GB</span>
+            <span class="stat-subtext" id="admRamPctVal">0% consumed</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Disk Storage</span>
+            <span class="stat-value" id="admDiskVal">0 / 0 GB</span>
+            <span class="stat-subtext" id="admDiskPctVal">0% consumed</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Active Worker Threads</span>
+            <span class="stat-value" id="admThreadsVal">0</span>
+            <span class="stat-subtext">FastAPI concurrent workers</span>
+          </div>
+        </div>
+
+        <!-- Database Ping Health -->
+        <h3 style="margin: 1.5rem 0 1rem; font-size: 1.15rem; color: #fff;">🩺 Database Connectivity & Ping</h3>
+        <div class="card">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Service Gateway</th>
+                  <th>Target Database</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Application Core Database</td>
+                  <td><code>sql_performance_app</code></td>
+                  <td><span class="badge badge-optimized" id="admAppDb">ONLINE</span></td>
+                </tr>
+                <tr>
+                  <td>Controlled Analysis Sandbox</td>
+                  <td><code>sql_performance_analysis</code></td>
+                  <td><span class="badge badge-optimized" id="admAnalysisDb">ONLINE</span></td>
+                </tr>
+                <tr>
+                  <td>Platform Operational Status</td>
+                  <td>Production API Gateway</td>
+                  <td><span class="badge badge-optimized" id="admOverallStatus">HEALTHY</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Platform Execution Metrics -->
+        <h3 style="margin: 1.5rem 0 1rem; font-size: 1.15rem; color: #fff;">📊 Platform-Wide Execution Throughput</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Total Queries Analyzed</span>
+            <span class="stat-value" id="admTotalQueries">0</span>
+            <span class="stat-subtext">Across all users</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Total Comparisons Run</span>
+            <span class="stat-value" id="admTotalComparisons">0</span>
+            <span class="stat-subtext">Benchmarked rewrites</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Platform Average Latency</span>
+            <span class="stat-value" id="admAvgLatency">0.00 ms</span>
+            <span class="stat-subtext">Execution mean</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: USER DIRECTORY -->
+      <section id="tab-users" class="hidden">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">User Directory & Access Control</h1>
+            <p class="section-subtitle">Manage customer accounts, suspend abusive actors, and elevate administrative privileges.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAdminUsers()">🔄 Refresh Users</button>
+        </div>
+
+        <div class="card">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Email Address</th>
+                  <th>Full Name</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Queries Executed</th>
+                  <th>Created</th>
+                  <th>Access Controls</th>
+                </tr>
+              </thead>
+              <tbody id="admUsersTableBody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Loading user accounts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: FIREWALL THREATS -->
+      <section id="tab-security" class="hidden">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">Security Firewall & Blocked Threats</h1>
+            <p class="section-subtitle">Real-time intrusion prevention audit log tracking blocked destructive SQL statements.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAdminSecurityLogs()">🔄 Refresh Threat Log</button>
+        </div>
+
+        <div class="card">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Log ID</th>
+                  <th>User Identity</th>
+                  <th>Violation Type</th>
+                  <th>Blocked Statement Payload</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="admSecurityTableBody">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">No threats logged.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: FEEDBACK DESK -->
+      <section id="tab-feedback" class="hidden">
+        <div class="section-header">
+          <div>
+            <h1 class="section-title">User Satisfaction & Feedback Desk</h1>
+            <p class="section-subtitle">Customer ratings, bug reports, and performance improvement suggestions.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAdminFeedback()">🔄 Refresh Feedback</button>
+        </div>
+
+        <div class="card">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ticket ID</th>
+                  <th>User Email</th>
+                  <th>Rating</th>
+                  <th>Category</th>
+                  <th>User Message</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admFeedbackTableBody">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No user feedback submitted yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

@@ -102,15 +102,12 @@ function updateAuthUI() {
     roleTag.textContent = currentUser.role;
     roleTag.className = `role-tag ${currentUser.role === "ADMIN" ? "admin" : ""}`;
 
-    if (currentUser.role === "ADMIN") {
+  if (adminNavBtn) {
+    if (currentUser && currentUser.role === "ADMIN") {
       adminNavBtn.classList.remove("hidden");
     } else {
       adminNavBtn.classList.add("hidden");
     }
-  } else {
-    userProfile.classList.add("hidden");
-    loginBtn.classList.remove("hidden");
-    adminNavBtn.classList.add("hidden");
   }
 }
 
@@ -200,7 +197,7 @@ async function handleAuthSubmit(event) {
 function navigate(viewName) {
   currentView = viewName;
 
-  const views = ["dashboard", "analyzer", "comparison", "history", "admin"];
+  const views = ["dashboard", "analyzer", "comparison", "history"];
   views.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     if (el) {
@@ -223,7 +220,6 @@ function navigate(viewName) {
   if (viewName === "dashboard") loadDashboard();
   if (viewName === "history") loadHistory(1);
   if (viewName === "comparison") loadSavedComparisons();
-  if (viewName === "admin") loadAdmin();
   if (viewName === "analyzer") loadDatabaseSchema();
 }
 

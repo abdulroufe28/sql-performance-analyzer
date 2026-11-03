@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from backend.app.core.database import analysis_engine
+from backend.app.services.anti_pattern_service import analyze_sql_anti_patterns
 from backend.app.services.sql_safety_service import validate_read_only_sql
 
 
@@ -177,6 +178,20 @@ def get_explain_plan(query: str) -> dict[str, Any]:
             "suggestion": f"Good index utilization: queries utilized index(es): {', '.join(set(indexes_used))}."
         })
 
+    # Real-world anti-pattern scan
+    anti_patterns = analyze_sql_anti_patterns(safe_query)
+    for ap in anti_patterns:
+        bottlenecks.append({
+            "type": ap["code"],
+            "severity": ap["severity"],
+            "table": ", ".join(t.get("table_name", "") for t in extracted_tables) or "query",
+            "message": f"{ap['name']}: {ap['impact']}",
+        })
+        recommendations.append({
+            "category": "ANTI_PATTERN_FIX",
+            "suggestion": ap["remediation"],
+        })
+
     # Overall Performance Rating
     if any(b["severity"] == "CRITICAL" for b in bottlenecks):
         performance_rating = "CRITICAL_BOTTLENECK"
@@ -196,5 +211,6 @@ def get_explain_plan(query: str) -> dict[str, Any]:
         "using_temporary": using_temporary,
         "bottlenecks": bottlenecks,
         "recommendations": recommendations,
+        "anti_patterns": anti_patterns,
         "performance_rating": performance_rating,
     }
